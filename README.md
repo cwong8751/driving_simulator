@@ -2,15 +2,15 @@
 Driving simulator is a driving simulator. 
 
 ## Keymappings 
-Arrow Up - gas pedal
-Arrow Down - brake pedal
-Space - handbrake
-Arrow Left - left turn
-Arrow Right - right turn
-Left Shift - Clutch pedal
-X - gear up
-Z - gear down
-V - ignition (Off, ACC, On)
+- Arrow Up - gas pedal
+- Arrow Down - brake pedal
+- Space - handbrake
+- Arrow Left - left turn
+- Arrow Right - right turn
+- Left Shift - Clutch pedal
+- X - gear up
+- Z - gear down
+- V - ignition (Off, ACC, On)
 
 
 ## Car configurations
