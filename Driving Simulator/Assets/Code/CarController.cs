@@ -15,7 +15,7 @@ public class CarController : MonoBehaviour
     private bool clutchPressed = false;
 
     public float engineRPM;
-    public float maxRPM = 7000f;
+    public float maxRPM = 6500f;
     private bool revCut = false;
     private float revCutTimer = 0f;
 
@@ -27,6 +27,11 @@ public class CarController : MonoBehaviour
 
     private Rigidbody rb;
 
+    // igniton text
+    public TextMeshProUGUI ignitionText;
+    public int currentIgnition = 0; // 0 = off, 1 = on, 2 = start
+    public float ignitionTime = 2f; // time to start the car
+
     void Start()
     {
         rb = GetComponent<Rigidbody>();
@@ -34,6 +39,26 @@ public class CarController : MonoBehaviour
 
     void Update()
     {
+
+        // ignition
+        if (Input.GetKeyDown(KeyCode.V))
+        {
+            if (currentIgnition == 0)
+            {
+                currentIgnition = 1; // Turn ignition ON
+            }
+            else if (currentIgnition == 1)
+            {
+                currentIgnition = 2; // Try to START the engine
+                StartCoroutine(StartEngine());
+            }
+            else if (currentIgnition == 2)
+            {
+                currentIgnition = 0; // Turn OFF
+            }
+        }
+
+        // shifting 
         clutchPressed = Input.GetKey(KeyCode.LeftShift);
 
         if (clutchPressed)
@@ -44,6 +69,7 @@ public class CarController : MonoBehaviour
             StopMotor();
         }
 
+        //update gear text 
         if (gearText != null)
         {
             if (currentGear == 0)
@@ -54,12 +80,14 @@ public class CarController : MonoBehaviour
                 gearText.text = currentGear.ToString();
         }
 
+        // update speed text 
         if (speedText != null)
         {
             float speed = GetComponent<Rigidbody>().velocity.magnitude * 2.237f; // m/s to km/h
             speedText.text = Mathf.RoundToInt(speed) + " mph";
         }
 
+        // update rpm text 
         if (rpmText != null)
         {
             rpmText.text = Mathf.RoundToInt(engineRPM) + " RPM";
@@ -67,7 +95,7 @@ public class CarController : MonoBehaviour
             {
                 rpmText.color = Color.green;
             }
-            else if (engineRPM < 6500)
+            else if (engineRPM < 6000)
             {
                 rpmText.color = Color.yellow;
             }
@@ -77,11 +105,29 @@ public class CarController : MonoBehaviour
             }
         }
 
+        if (ignitionText != null)
+        {
+            switch (currentIgnition)
+            {
+                case 0:
+                    ignitionText.text = "OFF";
+                    ignitionText.color = Color.red;
+                    break;
+                case 1:
+                    ignitionText.text = "ACC";
+                    ignitionText.color = Color.yellow;
+                    break;
+                case 2:
+                    ignitionText.text = "ON";
+                    ignitionText.color = Color.green;
+                    break;
+            }
+        }
     }
 
     void FixedUpdate()
     {
-        float motorInput = Input.GetAxis("Vertical");
+        float motorInput = (currentIgnition == 2) ? Input.GetAxis("Vertical") : 0f; // 0 if engine is off
         float steering = maxSteerAngle * Input.GetAxis("Horizontal");
 
         wheelFL.steerAngle = steering;
@@ -99,6 +145,13 @@ public class CarController : MonoBehaviour
         else
         {
             engineRPM = Mathf.Abs(avgWheelRPM);
+        }
+
+
+        if (currentIgnition == 0)
+        {
+            torque = 0f; // Engine off, no torque
+            engineRPM = 0f; // Engine stopped
         }
 
         // calculate torque
@@ -152,7 +205,8 @@ public class CarController : MonoBehaviour
         wheelRR.brakeTorque = brake;
 
         // handbrake
-        if(Input.GetKey(KeyCode.Space)){
+        if (Input.GetKey(KeyCode.Space))
+        {
             wheelRL.brakeTorque = brakeForce * 2f;
             wheelRR.brakeTorque = brakeForce * 2f;
         }
@@ -190,4 +244,12 @@ public class CarController : MonoBehaviour
         trans.position = pos;
         trans.rotation = rot;
     }
+
+
+    // wait for a few seconds then start the engine. 
+    System.Collections.IEnumerator StartEngine()
+    {
+        yield return new WaitForSeconds(ignitionTime); // Wait for starting time
+    }
+
 }
