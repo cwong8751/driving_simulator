@@ -54,18 +54,20 @@ public class CarController : MonoBehaviour
             {
                 currentIgnition = 0;
             }
-
-            if (currentIgnition == 0)
+            else
             {
-                currentIgnition = 1; // Turn ignition ON
-            }
-            else if (currentIgnition == 1)
-            {
-                currentIgnition = 2;
-            }
-            else if (currentIgnition == 2)
-            {
-                StartCoroutine(StartEngine());
+                if (currentIgnition == 0)
+                {
+                    currentIgnition = 1; // Turn ignition ON
+                }
+                else if (currentIgnition == 1)
+                {
+                    currentIgnition = 2;
+                }
+                else if (currentIgnition == 2)
+                {
+                    StartCoroutine(StartEngine());
+                }
             }
         }
 
@@ -153,7 +155,7 @@ public class CarController : MonoBehaviour
         if (currentIgnition == 0 || currentIgnition == 1)
         {
             torque = 0f; // Engine off, no torque
-            engineRPM = 0f; // Engine stopped
+            engineRPM = Mathf.MoveTowards(engineRPM, 0f, Time.deltaTime * 1000f); // Engine stopped
         }
         else
         {
@@ -179,7 +181,8 @@ public class CarController : MonoBehaviour
             }
         }
 
-        if(engineRPM > maxRPM){
+        if (engineRPM > maxRPM)
+        {
             engineRPM = maxRPM; // Clamp RPM to max RPM
             torque = 0f; // No torque if RPM exceeds max
         }
