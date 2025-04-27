@@ -1,4 +1,5 @@
 using System;
+using System.Data.Common;
 using TMPro;
 using UnityEngine;
 
@@ -204,17 +205,59 @@ public class CarController : MonoBehaviour
             }
         }
 
-        // Apply torque to the wheels when the clutch is not pressed
-        if (!clutchPressed)
+        // stalling 
+        if (engineRPM < idleRPM * 0.8f && !clutchPressed && currentGear != 0)
         {
-            wheelRL.motorTorque = torque;
-            wheelRR.motorTorque = torque;
+            Debug.Log("engine stall");
+            currentIgnition = 0;
+            engineRPM = 0f;
+            torque = 0f;
+            rb.drag = 2f; // Increase drag to simulate stalling
         }
         else
         {
-            wheelRL.motorTorque = 0;
-            wheelRR.motorTorque = 0;
+            rb.drag = 0.1f; // Reset drag when not stalling
         }
+
+        if (currentIgnition == 2)
+        {
+            float carSpeed = rb.velocity.magnitude; // m/s
+
+            // Apply engine braking or coasting
+            if (!clutchPressed && motorInput < 0.1f && currentGear != 0)
+            {
+                float engineBrakeStrength = 0.0005f;
+                float effectiveRPM = Mathf.Max(engineRPM, idleRPM);
+                float engineBrakeTorque = -engineBrakeStrength * effectiveRPM;
+
+                // Creep forward if very low speed (simulate idle creep)
+                if (carSpeed < 2f && (currentGear == 1 || currentGear == -1)) // if slower than 2 m/s (~5 mph)
+                {
+                    float creepTorque = 60f; // tweak this to feel natural
+                    engineBrakeTorque += creepTorque;
+                }
+
+                wheelRL.motorTorque = engineBrakeTorque;
+                wheelRR.motorTorque = engineBrakeTorque;
+            }
+            else
+            {
+                wheelRL.motorTorque = torque;
+                wheelRR.motorTorque = torque;
+            }
+        }
+
+        // // Apply torque to the wheels when the clutch is not pressed
+        // if (!clutchPressed)
+        // {
+        //     wheelRL.motorTorque = torque;
+        //     wheelRR.motorTorque = torque;
+        // }
+        // else
+        // {
+        //     wheelRL.motorTorque = 0;
+        //     wheelRR.motorTorque = 0;
+        // }
 
         // Handle braking
         float brake = 0f;
