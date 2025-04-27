@@ -1,3 +1,4 @@
+using System;
 using TMPro;
 using UnityEngine;
 
@@ -27,6 +28,8 @@ public class CarController : MonoBehaviour
 
     private Rigidbody rb;
 
+    public float idleRPM = 1000f;
+
     // igniton text
     public TextMeshProUGUI ignitionText;
     public int currentIgnition = 0; // 0 = off, 1 = on, 2 = start
@@ -35,6 +38,7 @@ public class CarController : MonoBehaviour
     void Start()
     {
         rb = GetComponent<Rigidbody>();
+        Debug.Log("CarController started");
     }
 
     void Update()
@@ -43,18 +47,25 @@ public class CarController : MonoBehaviour
         // ignition
         if (Input.GetKeyDown(KeyCode.V))
         {
+            Debug.Log("Current Ignition: " + currentIgnition);
+
+            // turn off the car
+            if (currentIgnition == 2)
+            {
+                currentIgnition = 0;
+            }
+
             if (currentIgnition == 0)
             {
                 currentIgnition = 1; // Turn ignition ON
             }
             else if (currentIgnition == 1)
             {
-                currentIgnition = 2; // Try to START the engine
-                StartCoroutine(StartEngine());
+                currentIgnition = 2;
             }
             else if (currentIgnition == 2)
             {
-                currentIgnition = 0; // Turn OFF
+                StartCoroutine(StartEngine());
             }
         }
 
@@ -124,10 +135,11 @@ public class CarController : MonoBehaviour
             }
         }
     }
-
     void FixedUpdate()
     {
-        float motorInput = (currentIgnition == 2) ? Input.GetAxis("Vertical") : 0f; // 0 if engine is off
+        // Get throttle input (only if the engine is on)
+        // float motorInput = (currentIgnition == 2) ? Input.GetAxis("Vertical") : 0f; // 0 if engine is off
+        float motorInput = (currentIgnition == 2) ? Mathf.Clamp(Input.GetAxis("Vertical"), 0f, 1f) * 0.4f : 0f; // Reducing throttle sensitivity
         float steering = maxSteerAngle * Input.GetAxis("Horizontal");
 
         wheelFL.steerAngle = steering;
@@ -137,63 +149,72 @@ public class CarController : MonoBehaviour
         float avgWheelRPM = (wheelRL.rpm + wheelRR.rpm) / 2f;
         float torque = 0f;
 
-        if (currentGear != 0)
-        {
-            float targetRPM = Mathf.Abs(avgWheelRPM * gearRatios[currentGear + 1] * finalDriveRatio);
-            engineRPM = Mathf.Lerp(engineRPM, targetRPM, Time.deltaTime * 10f); // 5f is rpm smoothing factor
-        }
-        else
-        {
-            engineRPM = Mathf.Abs(avgWheelRPM);
-        }
-
-
-        if (currentIgnition == 0)
+        // if engine is off or in ACC (accessory)
+        if (currentIgnition == 0 || currentIgnition == 1)
         {
             torque = 0f; // Engine off, no torque
             engineRPM = 0f; // Engine stopped
         }
-
-        // calculate torque
-
-        if (currentGear != 0 && !revCut && engineRPM < maxRPM)
+        else
         {
-            torque = maxTorque * motorInput * gearRatios[currentGear + 1] * finalDriveRatio;
+            // If the car is in neutral or clutch is pressed
+            if (currentGear == 0 || clutchPressed)
+            {
+                // Don't apply torque when in neutral or clutch is pressed, and return to idle RPM
+                engineRPM = Mathf.MoveTowards(engineRPM, idleRPM, Time.deltaTime * 1000f);
+                torque = 0f; // No torque in neutral or clutch pressed
+            }
+            else
+            {
+                // Apply torque when the car is in gear and the clutch is not pressed
+                float targetRPM = Mathf.Abs(avgWheelRPM * gearRatios[currentGear + 1] * finalDriveRatio);
+                engineRPM = Mathf.Lerp(engineRPM, targetRPM, Time.deltaTime * 2f);
+
+                // Apply torque based on the throttle input and gear ratio
+                if (engineRPM < maxRPM && !revCut)
+                {
+                    float engineTorqueMultiplier = Mathf.Lerp(1f, 0.5f, Mathf.Clamp01((engineRPM - 4000f) / (maxRPM - 4000f)));
+                    torque = maxTorque * motorInput * gearRatios[currentGear + 1] * finalDriveRatio * engineTorqueMultiplier; // add a torque multiplier 
+                }
+            }
         }
 
-        // calculate rev cut
+        if(engineRPM > maxRPM){
+            engineRPM = maxRPM; // Clamp RPM to max RPM
+            torque = 0f; // No torque if RPM exceeds max
+        }
+
+        // Rev cut logic to prevent the engine from exceeding max RPM
         if (engineRPM > maxRPM && !revCut)
         {
             revCut = true;
-            revCutTimer = 0.2f;
+            revCutTimer = 0.2f; // Hold rev cut for 0.2 seconds
         }
 
         if (revCut)
         {
-            torque = 0f;
+            torque = 0f; // No torque while the rev cut is active
             revCutTimer -= Time.deltaTime;
             if (revCutTimer <= 0f)
             {
-                revCut = false;
+                revCut = false; // Reset rev cut after timer expires
             }
         }
 
-
+        // Apply torque to the wheels when the clutch is not pressed
         if (!clutchPressed)
         {
-            //Debug.Log("give torque");
             wheelRL.motorTorque = torque;
             wheelRR.motorTorque = torque;
         }
         else
         {
-            //Debug.Log("clutch pressed, no torque");
             wheelRL.motorTorque = 0;
             wheelRR.motorTorque = 0;
         }
 
+        // Handle braking
         float brake = 0f;
-
         if (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow))
         {
             brake = brakeForce;
@@ -204,24 +225,28 @@ public class CarController : MonoBehaviour
         wheelRL.brakeTorque = brake;
         wheelRR.brakeTorque = brake;
 
-        // handbrake
+        // Handle handbrake
         if (Input.GetKey(KeyCode.Space))
         {
             wheelRL.brakeTorque = brakeForce * 2f;
             wheelRR.brakeTorque = brakeForce * 2f;
         }
 
-
+        // Update the wheels' positions and rotations
         UpdateWheel(wheelFL, wheelFLTransform);
         UpdateWheel(wheelFR, wheelFRTransform);
         UpdateWheel(wheelRL, wheelRLTransform);
         UpdateWheel(wheelRR, wheelRRTransform);
     }
 
+
     void ShiftUp()
     {
         if (currentGear < gearRatios.Length - 2)
+        {
             currentGear++;
+        }
+
     }
 
     void ShiftDown()
@@ -249,7 +274,7 @@ public class CarController : MonoBehaviour
     // wait for a few seconds then start the engine. 
     System.Collections.IEnumerator StartEngine()
     {
+        Debug.Log("Starting engine...");
         yield return new WaitForSeconds(ignitionTime); // Wait for starting time
     }
-
 }
