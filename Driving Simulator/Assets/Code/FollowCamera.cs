@@ -6,7 +6,7 @@ public class FollowCamera : MonoBehaviour
     public Vector3 offset = new Vector3(0, 5, -10);
     public float smoothSpeed = 5f;
 
-    public float rotationSpeed = 100f;
+    public float rotationSpeed = 50f;
     public float zoomSpeed = 5f;
     public float minZoom = 5f;
     public float maxZoom = 10f;
@@ -25,8 +25,8 @@ public class FollowCamera : MonoBehaviour
         if (Input.GetMouseButton(1)) // Right mouse button held
         {
             manualRotation = true;
-            yaw += Input.GetAxis("Mouse X") * rotationSpeed * Time.deltaTime;
-            pitch -= Input.GetAxis("Mouse Y") * rotationSpeed * Time.deltaTime;
+            yaw += Input.GetAxis("Mouse X") * rotationSpeed;
+            pitch -= Input.GetAxis("Mouse Y") * rotationSpeed;
             pitch = Mathf.Clamp(pitch, 10f, 80f); // Limit pitch to avoid flipping
         }
         else

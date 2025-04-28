@@ -40,6 +40,7 @@ public class CarController : MonoBehaviour
     {
         rb = GetComponent<Rigidbody>();
         Debug.Log("CarController started");
+        Debug.Log("center of mass: " + rb.centerOfMass);
     }
 
     void Update()
@@ -142,7 +143,7 @@ public class CarController : MonoBehaviour
     {
         // Get throttle input (only if the engine is on)
         // float motorInput = (currentIgnition == 2) ? Input.GetAxis("Vertical") : 0f; // 0 if engine is off
-        float motorInput = (currentIgnition == 2) ? Mathf.Clamp(Input.GetAxis("Vertical"), 0f, 1f) * 0.4f : 0f; // Reducing throttle sensitivity
+        float motorInput = (currentIgnition == 2) ? Mathf.Clamp(Input.GetAxis("Vertical"), 0f, 1f) * 0.5f : 0f; // Reducing throttle sensitivity
         float steering = maxSteerAngle * Input.GetAxis("Horizontal");
 
         wheelFL.steerAngle = steering;
@@ -176,7 +177,7 @@ public class CarController : MonoBehaviour
                 // Apply torque based on the throttle input and gear ratio
                 if (engineRPM < maxRPM && !revCut)
                 {
-                    float engineTorqueMultiplier = Mathf.Lerp(1f, 0.5f, Mathf.Clamp01((engineRPM - 4000f) / (maxRPM - 4000f)));
+                    float engineTorqueMultiplier = Mathf.Lerp(1f, 0.5f, Mathf.Clamp01((engineRPM - 5000f) / (maxRPM - 5000f)));
                     torque = maxTorque * motorInput * gearRatios[currentGear + 1] * finalDriveRatio * engineTorqueMultiplier; // add a torque multiplier 
                 }
             }
@@ -212,7 +213,7 @@ public class CarController : MonoBehaviour
             currentIgnition = 0;
             engineRPM = 0f;
             torque = 0f;
-            rb.drag = 2f; // Increase drag to simulate stalling
+            rb.drag = 1f; // Increase drag to simulate stalling
         }
         else
         {
